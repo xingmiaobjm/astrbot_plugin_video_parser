@@ -13,65 +13,13 @@
       <button id="btn-save" class="btn btn-primary">保存设置</button>
     </div>
     <nav class="tabs" role="tablist">
-      <button class="tab active" role="tab" data-tab="general" aria-selected="true">通用设置</button>
-      <button class="tab" role="tab" data-tab="platforms" aria-selected="false">平台配置</button>
+      <button class="tab active" role="tab" data-tab="platforms" aria-selected="true">平台配置</button>
       <button class="tab" role="tab" data-tab="test" aria-selected="false">手动测试</button>
       <button class="tab" role="tab" data-tab="stats" aria-selected="false">统计看板</button>
     </nav>
 
-    <!-- Tab 1: 通用设置 -->
-    <section class="tab-panel active" role="tabpanel" data-panel="general">
-      <div class="panel-block">
-        <h2>基本配置</h2>
-        <div class="form-grid">
-          <label class="form-item switch-item">
-            <span>
-              <strong>自动解析</strong>
-              <small>检测到消息中的链接时自动解析并回复</small>
-            </span>
-            <input type="checkbox" id="auto_parse" />
-          </label>
-          <label class="form-item switch-item">
-            <span>
-              <strong>发送视频文件</strong>
-              <small>下载视频后作为文件发送（关闭仅发送文字）</small>
-            </span>
-            <input type="checkbox" id="send_video_file" />
-          </label>
-          <label class="form-item switch-item">
-            <span>
-              <strong>启用缓存</strong>
-              <small>缓存解析结果以减少重复请求</small>
-            </span>
-            <input type="checkbox" id="cache_enabled" />
-          </label>
-        </div>
-      </div>
-
-      <div class="panel-block">
-        <h2>参数调节</h2>
-        <div class="form-grid form-grid--2col">
-          <label class="form-item">
-            <strong>最大视频大小 (MB)</strong>
-            <small>超过此大小的视频仅发送文字信息</small>
-            <input type="number" id="max_video_size_mb" min="1" max="500" />
-          </label>
-          <label class="form-item">
-            <strong>请求超时 (秒)</strong>
-            <small>请求视频平台API的超时时间</small>
-            <input type="number" id="request_timeout" min="5" max="120" />
-          </label>
-          <label class="form-item">
-            <strong>缓存过期时间 (分钟)</strong>
-            <small>解析结果缓存的有效时长</small>
-            <input type="number" id="cache_ttl_minutes" min="1" max="1440" />
-          </label>
-        </div>
-      </div>
-    </section>
-
-    <!-- Tab 2: 平台配置 -->
-    <section class="tab-panel" role="tabpanel" data-panel="platforms" hidden>
+    <!-- Tab 1: 平台配置 -->
+    <section class="tab-panel active" role="tabpanel" data-panel="platforms">
       <div class="panel-block">
         <h2>启用平台</h2>
         <p class="section-desc">选择需要自动解析的视频平台</p>
@@ -103,6 +51,22 @@
               <small>twitter.com / x.com</small>
             </span>
             <input type="checkbox" id="platform_twitter" />
+          </label>
+        </div>
+      </div>
+
+      <div class="panel-block">
+        <h2>下载参数</h2>
+        <div class="form-grid form-grid--2col">
+          <label class="form-item">
+            <strong>最大视频大小 (MB)</strong>
+            <small>超过此大小仅发送文字信息</small>
+            <input type="number" id="max_video_size_mb" min="1" max="500" />
+          </label>
+          <label class="form-item">
+            <strong>请求超时 (秒)</strong>
+            <small>请求视频平台API的超时时间</small>
+            <input type="number" id="request_timeout" min="5" max="120" />
           </label>
         </div>
       </div>

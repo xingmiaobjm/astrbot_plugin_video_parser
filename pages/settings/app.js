@@ -6,13 +6,9 @@ const $ = (id) => document.getElementById(id);
 
 /* ---- Config field mapping ---- */
 const CONFIG_FIELDS = {
-  // General
-  auto_parse:           { id: "auto_parse",            type: "bool",   default: true },
-  send_video_file:      { id: "send_video_file",       type: "bool",   default: true },
-  cache_enabled:        { id: "cache_enabled",         type: "bool",   default: true },
+  // Params
   max_video_size_mb:    { id: "max_video_size_mb",     type: "int",    default: 50 },
   request_timeout:      { id: "request_timeout",       type: "int",    default: 30 },
-  cache_ttl_minutes:    { id: "cache_ttl_minutes",     type: "int",    default: 30 },
   // Platform switches
   platform_douyin:      { id: "platform_douyin",       configPath: "enabled_platforms.douyin",  type: "bool", default: true },
   platform_bilibili:    { id: "platform_bilibili",     configPath: "enabled_platforms.bilibili", type: "bool", default: true },
@@ -25,7 +21,7 @@ const CONFIG_FIELDS = {
 };
 
 /* ---- Tab Switching ---- */
-let currentTab = "general";
+let currentTab = "platforms";
 
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {

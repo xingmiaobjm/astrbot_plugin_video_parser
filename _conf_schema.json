@@ -26,41 +26,17 @@
       }
     }
   },
-  "auto_parse": {
-    "description": "自动解析模式",
-    "type": "bool",
-    "default": true,
-    "hint": "开启后，当检测到消息中包含支持平台的链接时自动解析并回复"
-  },
-  "send_video_file": {
-    "description": "发送视频文件",
-    "type": "bool",
-    "default": true,
-    "hint": "是否下载视频并发送文件到聊天中（关闭则仅发送文本信息）"
-  },
   "max_video_size_mb": {
     "description": "最大视频大小(MB)",
     "type": "int",
     "default": 50,
-    "hint": "自动下载视频的最大大小限制，超过此大小仅发送链接"
+    "hint": "自动下载视频的最大大小限制，超过此大小仅发送文字信息"
   },
   "request_timeout": {
     "description": "请求超时(秒)",
     "type": "int",
     "default": 30,
     "hint": "请求视频平台API的超时时间"
-  },
-  "cache_enabled": {
-    "description": "启用缓存",
-    "type": "bool",
-    "default": true,
-    "hint": "缓存解析结果以减少重复请求"
-  },
-  "cache_ttl_minutes": {
-    "description": "缓存过期时间(分钟)",
-    "type": "int",
-    "default": 30,
-    "hint": "解析结果缓存的有效时间"
   },
   "twitter_cookies": {
     "description": "X(Twitter) Cookie",

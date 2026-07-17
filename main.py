@@ -11,7 +11,6 @@ from typing import Optional
 
 import httpx
 from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
-from astrbot.api.event.filter import event_message_type, EventMessageType
 from astrbot.api.star import Context, Star
 from astrbot.api import logger, AstrBotConfig
 from astrbot.api.message_components import Plain, Image, At, Video
@@ -83,8 +82,7 @@ class VideoParserPlugin(Star):
         """获取公开配置项（返回纯 dict）"""
         public_config = {}
         for key in (
-            "auto_parse", "send_video_file", "cache_enabled",
-            "max_video_size_mb", "request_timeout", "cache_ttl_minutes",
+            "max_video_size_mb", "request_timeout",
             "twitter_cookies", "xiaohongshu_cookies",
             "douyin_api_url",
         ):
@@ -104,8 +102,7 @@ class VideoParserPlugin(Star):
             return error_response("配置格式不正确", status_code=400)
 
         for key in (
-            "auto_parse", "send_video_file", "cache_enabled",
-            "max_video_size_mb", "request_timeout", "cache_ttl_minutes",
+            "max_video_size_mb", "request_timeout",
             "twitter_cookies", "xiaohongshu_cookies",
             "douyin_api_url",
         ):
@@ -164,8 +161,8 @@ class VideoParserPlugin(Star):
         active = sum(1 for _, (_, exp) in self._cache.items() if exp > now)
         return json_response({
             "active": active, "total": len(self._cache),
-            "cache_enabled": self.config.get("cache_enabled", True),
-            "ttl_minutes": self.config.get("cache_ttl_minutes", 30),
+            "cache_enabled": True,
+            "ttl_minutes": 30,
         })
 
     async def _api_manual_parse(self):
@@ -250,22 +247,24 @@ class VideoParserPlugin(Star):
 
     # ========== 自动解析 ==========
 
-    @event_message_type(EventMessageType.ALL)
+    @filter.regex(r'https?://')
     async def on_message(self, event: AstrMessageEvent):
-        if not self.config.get("auto_parse", True):
-            return
+        # 获取消息纯文本
+        message = event.message_str
 
-        # 从消息链中提取纯文本（兼容不同 AstrBot 版本）
-        raw_text = ""
-        try:
-            # 优先遍历消息链中的 Plain 组件
-            for comp in event.message_obj.message:
-                if isinstance(comp, Plain):
-                    raw_text += comp.text
-        except Exception:
-            raw_text = str(event.message_obj.message)
+        # 兜底：从消息链组件中提取文本
+        if not message:
+            try:
+                parts = []
+                for comp in event.message_obj.message:
+                    text = getattr(comp, 'text', None)
+                    if text:
+                        parts.append(text)
+                message = "".join(parts)
+            except Exception:
+                pass
 
-        message = raw_text or event.message_str
+        logger.debug(f"[VideoParser] 收到消息: {message[:200] if message else '(空)'}")
         if not message:
             return
 
@@ -298,8 +297,7 @@ class VideoParserPlugin(Star):
 
         # 下载视频
         video_path = None
-        send_video = self.config.get("send_video_file", True)
-        if result.video_url and send_video:
+        if result.video_url:
             logger.info(f"[VideoParser] 准备下载视频: platform={platform}, title={result.title}, "
                        f"url前80字符={result.video_url[:80]}")
             video_path = await self._download_video(result)
@@ -410,19 +408,17 @@ class VideoParserPlugin(Star):
     # ========== 解析核心 ==========
 
     async def _parse_with_cache(self, url: str, platform: str) -> ParserResult:
-        cache_enabled = self.config.get("cache_enabled", True)
-        ttl = self.config.get("cache_ttl_minutes", 30) * 60
+        cache_ttl = 30 * 60  # 固定30分钟缓存
         cache_key = hashlib.md5(url.encode()).hexdigest()
 
-        if cache_enabled:
-            now = time.time()
-            cached = self._cache.get(cache_key)
-            if cached:
-                cached_result, expire_time = cached
-                if expire_time > now:
-                    logger.debug(f"[VideoParser] 缓存命中: {url}")
-                    self._update_stats(platform, cached_result.success)
-                    return cached_result
+        now = time.time()
+        cached = self._cache.get(cache_key)
+        if cached:
+            cached_result, expire_time = cached
+            if expire_time > now:
+                logger.debug(f"[VideoParser] 缓存命中: {url}")
+                self._update_stats(platform, cached_result.success)
+                return cached_result
 
         parser = self.parsers.get(platform)
         if not parser:
@@ -437,8 +433,7 @@ class VideoParserPlugin(Star):
             result = ParserResult(success=False, platform=platform, error=f"解析异常: {str(e)}", raw_url=url)
 
         self._update_stats(platform, result.success)
-        if cache_enabled:
-            self._cache[cache_key] = (result, time.time() + ttl)
+        self._cache[cache_key] = (result, time.time() + cache_ttl)
 
         return result
 
