@@ -79,5 +79,5 @@
     "type": "text",
     "default": "",
     "hint": "抖音反爬严格，建议配置第三方解析API。留空仅使用官方接口（大概率失败）。接口格式：GET请求，返回JSON包含 title/author/video_url 字段，支持 {url} 占位符。示例: https://api.example.com/?url={url}"
-  },
+  }
 }
