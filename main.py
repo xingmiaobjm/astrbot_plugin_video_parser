@@ -60,7 +60,6 @@ class VideoParserPlugin(Star):
             "twitter_cookies": self.config.get("twitter_cookies", ""),
             "xiaohongshu_cookies": self.config.get("xiaohongshu_cookies", ""),
             "douyin_api_url": self.config.get("douyin_api_url", ""),
-            "kuaishou_api_url": self.config.get("kuaishou_api_url", ""),
         }
         for platform, parser_cls in PLATFORM_PARSERS.items():
             self.parsers[platform] = parser_cls(parser_config)
@@ -87,7 +86,7 @@ class VideoParserPlugin(Star):
             "auto_parse", "send_video_file", "cache_enabled",
             "max_video_size_mb", "request_timeout", "cache_ttl_minutes",
             "twitter_cookies", "xiaohongshu_cookies",
-            "douyin_api_url", "kuaishou_api_url",
+            "douyin_api_url",
         ):
             public_config[key] = self.config.get(key, None)
         ep = self.config.get("enabled_platforms", {})
@@ -108,7 +107,7 @@ class VideoParserPlugin(Star):
             "auto_parse", "send_video_file", "cache_enabled",
             "max_video_size_mb", "request_timeout", "cache_ttl_minutes",
             "twitter_cookies", "xiaohongshu_cookies",
-            "douyin_api_url", "kuaishou_api_url",
+            "douyin_api_url",
         ):
             if key in payload:
                 self.config[key] = payload[key]
@@ -128,7 +127,6 @@ class VideoParserPlugin(Star):
             "twitter_cookies": self.config.get("twitter_cookies", ""),
             "xiaohongshu_cookies": self.config.get("xiaohongshu_cookies", ""),
             "douyin_api_url": self.config.get("douyin_api_url", ""),
-            "kuaishou_api_url": self.config.get("kuaishou_api_url", ""),
         }
         for parser in self.parsers.values():
             parser.config = parser_config
@@ -138,7 +136,7 @@ class VideoParserPlugin(Star):
     async def _api_get_stats(self):
         platform_names = {
             "douyin": "抖音", "bilibili": "B站", "xiaohongshu": "小红书",
-            "kuaishou": "快手", "twitter": "X(Twitter)",
+            "twitter": "X(Twitter)",
         }
         platform_stats = {}
         for k, v in self.stats.items():
@@ -220,7 +218,7 @@ class VideoParserPlugin(Star):
         url = urls[0]
         platform = detect_platform(url)
         if not platform or platform not in self.parsers:
-            yield event.plain_result("不支持的链接格式，目前支持: 抖音、B站、小红书、快手、X(Twitter)")
+            yield event.plain_result("不支持的链接格式，目前支持: 抖音、B站、小红书、X(Twitter)")
             return
 
         enabled_platforms = self.config.get("enabled_platforms", {})
@@ -236,7 +234,7 @@ class VideoParserPlugin(Star):
     async def cmd_parse_status(self, event: AstrMessageEvent):
         platform_names = {
             "douyin": "抖音", "bilibili": "B站", "xiaohongshu": "小红书",
-            "kuaishou": "快手", "twitter": "X(Twitter)",
+            "twitter": "X(Twitter)",
         }
         lines = [
             "📊 视频解析统计",
