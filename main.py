@@ -254,9 +254,21 @@ class VideoParserPlugin(Star):
     async def on_message(self, event: AstrMessageEvent):
         if not self.config.get("auto_parse", True):
             return
-        message = event.message_str
+
+        # 从消息链中提取纯文本（兼容不同 AstrBot 版本）
+        raw_text = ""
+        try:
+            # 优先遍历消息链中的 Plain 组件
+            for comp in event.message_obj.message:
+                if isinstance(comp, Plain):
+                    raw_text += comp.text
+        except Exception:
+            raw_text = str(event.message_obj.message)
+
+        message = raw_text or event.message_str
         if not message:
             return
+
         urls = extract_urls(message)
         if not urls:
             return
