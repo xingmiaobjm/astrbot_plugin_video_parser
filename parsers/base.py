@@ -34,23 +34,21 @@ class ParserResult:
 # URL 匹配规则
 URL_PATTERNS = {
     "douyin": [
-        r"https?://(?:www\.)?(?:v\.douyin\.com/[\w-]+/?\S*|(?:www\.)?douyin\.com/video/\d+)",
-        r"https?://(?:www\.)?(?:v\.douyin\.com/\w+|(?:www\.)?douyin\.com/(?:video|note)/\d+)",
+        r"https?://(?:www\.)?v\.douyin\.com/[\w-]+/?\S*",
+        r"https?://(?:www\.)?douyin\.com/(?:video|note)/[\w-]+/?\S*",
+        r"https?://(?:www\.)?iesdouyin\.com/share/video/\d+/?\S*",
+        r"https?://(?:www\.)?(?:douyin\.tv|douyin\.com)/(?:share|embed)/[\w-]+/?\S*",
     ],
     "bilibili": [
-        r"https?://(?:www\.)?bilibili\.com/video/(?:BV\w+|av\d+)",
-        r"https?://(?:www\.)?b23\.tv/\w+",
+        r"https?://(?:www\.)?bilibili\.com/video/(?:BV\w+|av\d+)/?\S*",
+        r"https?://(?:www\.)?b23\.tv/\w+/?"
     ],
     "xiaohongshu": [
         r"https?://(?:www\.)?xhslink\.com/\w+\S*",
-        r"https?://(?:www\.)?xiaohongshu\.com/(?:discovery/item|explore)/\w+\S*",
-    ],
-    "kuaishou": [
-        r"https?://(?:www\.)?v\.kuaishou\.com/\w+",
-        r"https?://(?:www\.)?kuaishou\.com/(?:short-video|fw)/\w+",
+        r"https?://(?:www\.)?xiaohongshu\.com/(?:discovery/item|explore|note)/\w+\S*",
     ],
     "twitter": [
-        r"https?://(?:www\.)?(?:twitter\.com|x\.com)/\w+/status/\d+",
+        r"https?://(?:www\.)?(?:twitter\.com|x\.com)/\w+/status/\d+/?"
     ],
 }
 

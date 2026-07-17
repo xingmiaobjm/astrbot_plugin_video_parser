@@ -10,14 +10,12 @@ from .base import (
 from .douyin import DouyinParser
 from .bilibili import BilibiliParser
 from .xiaohongshu import XiaohongshuParser
-from .kuaishou import KuaishouParser
 from .twitter import TwitterParser
 
 PLATFORM_PARSERS = {
     "douyin": DouyinParser,
     "bilibili": BilibiliParser,
     "xiaohongshu": XiaohongshuParser,
-    "kuaishou": KuaishouParser,
     "twitter": TwitterParser,
 }
 
