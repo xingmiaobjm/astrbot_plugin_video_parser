@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>视频解析 - 设置</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main>
+    <div class="topbar">
+      <span id="save-status" class="status-badge">已加载</span>
+      <button id="btn-save" class="btn btn-primary">保存设置</button>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" role="tab" data-tab="general" aria-selected="true">通用设置</button>
+      <button class="tab" role="tab" data-tab="platforms" aria-selected="false">平台配置</button>
+      <button class="tab" role="tab" data-tab="test" aria-selected="false">手动测试</button>
+      <button class="tab" role="tab" data-tab="stats" aria-selected="false">统计看板</button>
+    </nav>
+
+    <!-- Tab 1: 通用设置 -->
+    <section class="tab-panel active" role="tabpanel" data-panel="general">
+      <div class="panel-block">
+        <h2>基本配置</h2>
+        <div class="form-grid">
+          <label class="form-item switch-item">
+            <span>
+              <strong>自动解析</strong>
+              <small>检测到消息中的链接时自动解析并回复</small>
+            </span>
+            <input type="checkbox" id="auto_parse" />
+          </label>
+          <label class="form-item switch-item">
+            <span>
+              <strong>发送视频文件</strong>
+              <small>下载视频后作为文件发送（关闭仅发送文字）</small>
+            </span>
+            <input type="checkbox" id="send_video_file" />
+          </label>
+          <label class="form-item switch-item">
+            <span>
+              <strong>启用缓存</strong>
+              <small>缓存解析结果以减少重复请求</small>
+            </span>
+            <input type="checkbox" id="cache_enabled" />
+          </label>
+        </div>
+      </div>
+
+      <div class="panel-block">
+        <h2>参数调节</h2>
+        <div class="form-grid form-grid--2col">
+          <label class="form-item">
+            <strong>最大视频大小 (MB)</strong>
+            <small>超过此大小的视频仅发送文字信息</small>
+            <input type="number" id="max_video_size_mb" min="1" max="500" />
+          </label>
+          <label class="form-item">
+            <strong>请求超时 (秒)</strong>
+            <small>请求视频平台API的超时时间</small>
+            <input type="number" id="request_timeout" min="5" max="120" />
+          </label>
+          <label class="form-item">
+            <strong>缓存过期时间 (分钟)</strong>
+            <small>解析结果缓存的有效时长</small>
+            <input type="number" id="cache_ttl_minutes" min="1" max="1440" />
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 2: 平台配置 -->
+    <section class="tab-panel" role="tabpanel" data-panel="platforms" hidden>
+      <div class="panel-block">
+        <h2>启用平台</h2>
+        <p class="section-desc">选择需要自动解析的视频平台</p>
+        <div class="form-grid">
+          <label class="form-item switch-item">
+            <span>
+              <strong>抖音</strong>
+              <small>v.douyin.com / douyin.com</small>
+            </span>
+            <input type="checkbox" id="platform_douyin" />
+          </label>
+          <label class="form-item switch-item">
+            <span>
+              <strong>B站 (Bilibili)</strong>
+              <small>bilibili.com / b23.tv</small>
+            </span>
+            <input type="checkbox" id="platform_bilibili" />
+          </label>
+          <label class="form-item switch-item">
+            <span>
+              <strong>小红书</strong>
+              <small>xiaohongshu.com / xhslink.com</small>
+            </span>
+            <input type="checkbox" id="platform_xiaohongshu" />
+          </label>
+          <label class="form-item switch-item">
+            <span>
+              <strong>X (Twitter)</strong>
+              <small>twitter.com / x.com</small>
+            </span>
+            <input type="checkbox" id="platform_twitter" />
+          </label>
+        </div>
+      </div>
+
+      <div class="panel-block">
+        <h2>Cookie 配置</h2>
+        <p class="section-desc">部分平台需要 Cookie 才能正常解析，从浏览器开发者工具获取</p>
+        <div class="form-grid">
+          <label class="form-item">
+            <strong>X (Twitter) Cookie</strong>
+            <small>用于提高 X 平台解析成功率</small>
+            <textarea id="twitter_cookies" rows="3" placeholder="粘贴 Twitter Cookie..."></textarea>
+          </label>
+          <label class="form-item">
+            <strong>小红书 Cookie</strong>
+            <small>a1、web_session 等，从浏览器 Application → Cookies 获取</small>
+            <textarea id="xiaohongshu_cookies" rows="3" placeholder="粘贴小红书 Cookie..."></textarea>
+          </label>
+        </div>
+      </div>
+
+      <div class="panel-block">
+        <h2>第三方解析 API</h2>
+        <p class="section-desc">部分平台反爬严格，可配置第三方 API 提高成功率。支持 <code>{url}</code> 占位符</p>
+        <div class="form-grid">
+          <label class="form-item">
+            <strong>抖音解析 API</strong>
+            <small>GET 请求，返回 JSON 含 title/author/video_url 字段</small>
+            <input type="text" id="douyin_api_url" placeholder="https://api.example.com/?url={url}" />
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 3: 手动测试 -->
+    <section class="tab-panel" role="tabpanel" data-panel="test" hidden>
+      <div class="panel-block">
+        <h2>手动解析测试</h2>
+        <div class="input-group">
+          <input type="text" id="url-input" placeholder="输入视频链接进行测试..." />
+          <select id="platform-select">
+            <option value="">自动检测</option>
+            <option value="douyin">抖音</option>
+            <option value="bilibili">B站</option>
+            <option value="xiaohongshu">小红书</option>
+            <option value="twitter">X (Twitter)</option>
+          </select>
+          <button id="btn-parse" class="btn btn-primary">解析</button>
+        </div>
+        <div id="result-container" style="display:none;">
+          <pre class="result-box" id="result-content"></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 4: 统计看板 -->
+    <section class="tab-panel" role="tabpanel" data-panel="stats" hidden>
+      <div class="panel-block">
+        <div class="stats-header">
+          <h2>解析统计</h2>
+          <button id="btn-refresh-stats" class="btn btn-secondary">刷新</button>
+        </div>
+        <div class="stat-cards" id="summary-grid"></div>
+      </div>
+
+      <div class="panel-block">
+        <h3>平台分布</h3>
+        <div class="chart-bar" id="platform-chart"></div>
+      </div>
+
+      <div class="panel-block">
+        <h3>缓存状态</h3>
+        <div id="cache-info"></div>
+        <div style="margin-top: 12px; display: flex; gap: 8px;">
+          <button id="btn-clear-cache" class="btn btn-secondary">清除缓存</button>
+          <button id="btn-reset-stats" class="btn btn-danger">重置统计</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

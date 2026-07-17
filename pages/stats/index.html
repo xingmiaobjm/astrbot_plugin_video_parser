@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>解析统计看板</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 24px;
+      background: var(--bg-primary, #f5f5f5);
+      color: var(--text-primary, #333);
+    }
+    h2 { margin-bottom: 20px; font-size: 20px; }
+    .card {
+      background: var(--bg-card, #fff);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--bg-primary, #f9fafb);
+      border-radius: 10px;
+      padding: 18px;
+      text-align: center;
+    }
+    .stat-card .value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #4f46e5;
+    }
+    .stat-card .label {
+      font-size: 13px;
+      color: var(--text-secondary, #666);
+      margin-top: 4px;
+    }
+
+    .chart-bar {
+      margin-top: 20px;
+    }
+    .bar-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .bar-label {
+      width: 80px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary, #333);
+    }
+    .bar-track {
+      flex: 1;
+      height: 24px;
+      background: var(--bg-primary, #e5e7eb);
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 0 12px;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 12px;
+      transition: width 0.3s ease;
+    }
+    .bar-count {
+      width: 50px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary, #666);
+      text-align: right;
+    }
+    .color-dy { background: linear-gradient(90deg, #ff6b6b, #ff4757); }
+    .color-bl { background: linear-gradient(90deg, #ff69b4, #fb7299); }
+    .color-xhs { background: linear-gradient(90deg, #ff2d55, #ff3b30); }
+    .color-ks { background: linear-gradient(90deg, #ff6b35, #f57c00); }
+    .color-tw { background: linear-gradient(90deg, #1da1f2, #0d8bd9); }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border-color, #eee);
+      font-size: 14px;
+    }
+    .info-label { color: var(--text-secondary, #666); }
+    .info-value { font-weight: 500; }
+
+    button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      background: var(--bg-secondary, #e5e7eb);
+      color: var(--text-primary, #333);
+    }
+    button:hover { background: #d1d5db; }
+
+    .refresh-indicator {
+      font-size: 12px;
+      color: var(--text-secondary, #999);
+      margin-left: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h2>解析统计看板 <button id="btn-refresh">刷新</button><span class="refresh-indicator" id="refresh-time"></span></h2>
+
+  <div class="grid" id="summary-grid"></div>
+
+  <div class="card">
+    <h3>平台分布</h3>
+    <div class="chart-bar" id="platform-chart"></div>
+  </div>
+
+  <div class="card">
+    <h3>缓存状态</h3>
+    <div id="cache-info"></div>
+  </div>
+
+  <script type="module">
+    const bridge = window.AstrBotPluginPage;
+    await bridge.ready();
+
+    const colors = {
+      "抖音": "color-dy", "B站": "color-bl",
+      "小红书": "color-xhs", "快手": "color-ks",
+      "X(Twitter)": "color-tw"
+    };
+
+    async function loadData() {
+      try {
+        const [stats, cacheStatus] = await Promise.all([
+          bridge.apiGet("stats"),
+          bridge.apiGet("cache_status")
+        ]);
+        renderAll(stats, cacheStatus);
+        document.getElementById("refresh-time").textContent =
+          new Date().toLocaleTimeString();
+      } catch (e) {
+        console.error("加载失败:", e);
+      }
+    }
+
+    function renderAll(stats, cache) {
+      const total = stats.total || 0;
+      const errors = stats.errors || 0;
+      const successRate = total > 0 ? ((total - errors) / total * 100).toFixed(1) : "0.0";
+
+      // Summary cards
+      document.getElementById("summary-grid").innerHTML = `
+        <div class="stat-card">
+          <div class="value">${total}</div>
+          <div class="label">总解析次数</div>
+        </div>
+        <div class="stat-card">
+          <div class="value">${errors}</div>
+          <div class="label">失败次数</div>
+        </div>
+        <div class="stat-card">
+          <div class="value">${successRate}%</div>
+          <div class="label">成功率</div>
+        </div>
+        <div class="stat-card">
+          <div class="value">${cache.active || 0}</div>
+          <div class="label">活跃缓存</div>
+        </div>
+      `;
+
+      // Platform chart
+      const platforms = stats.platforms || {};
+      const maxVal = Math.max(1, ...Object.values(platforms));
+      let chartHTML = '';
+      for (const [name, count] of Object.entries(platforms)) {
+        const pct = Math.round(count / maxVal * 100);
+        const colorCls = colors[name] || 'color-dy';
+        chartHTML += `
+          <div class="bar-row">
+            <span class="bar-label">${name}</span>
+            <div class="bar-track">
+              <div class="bar-fill ${colorCls}" style="width:${pct}%"></div>
+            </div>
+            <span class="bar-count">${count}</span>
+          </div>`;
+      }
+      if (!chartHTML) {
+        chartHTML = '<div style="color:#999;padding:20px;text-align:center">暂无解析记录</div>';
+      }
+      document.getElementById("platform-chart").innerHTML = chartHTML;
+
+      // Cache info
+      document.getElementById("cache-info").innerHTML = `
+        <div class="info-row">
+          <span class="info-label">缓存状态</span>
+          <span class="info-value">${cache.cache_enabled ? '已启用' : '已禁用'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">缓存 TTL</span>
+          <span class="info-value">${cache.ttl_minutes || 30} 分钟</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">活跃缓存</span>
+          <span class="info-value">${cache.active || 0} 条</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">总缓存</span>
+          <span class="info-value">${cache.total || 0} 条</span>
+        </div>
+      `;
+    }
+
+    document.getElementById("btn-refresh").addEventListener("click", loadData);
+
+    // Auto refresh every 30 seconds
+    loadData();
+    setInterval(loadData, 30000);
+  </script>
+</body>
+</html>

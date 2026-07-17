@@ -1,0 +1,94 @@
+{
+  "enabled_platforms": {
+    "description": "启用的解析平台",
+    "type": "object",
+    "hint": "选择需要自动解析的视频平台",
+    "items": {
+      "douyin": {
+        "description": "抖音",
+        "type": "bool",
+        "default": true
+      },
+      "bilibili": {
+        "description": "B站 (Bilibili)",
+        "type": "bool",
+        "default": true
+      },
+      "xiaohongshu": {
+        "description": "小红书",
+        "type": "bool",
+        "default": true
+      },
+      "kuaishou": {
+        "description": "快手",
+        "type": "bool",
+        "default": true
+      },
+      "twitter": {
+        "description": "X (Twitter)",
+        "type": "bool",
+        "default": true
+      }
+    }
+  },
+  "auto_parse": {
+    "description": "自动解析模式",
+    "type": "bool",
+    "default": true,
+    "hint": "开启后，当检测到消息中包含支持平台的链接时自动解析并回复"
+  },
+  "send_video_file": {
+    "description": "发送视频文件",
+    "type": "bool",
+    "default": true,
+    "hint": "是否下载视频并发送文件到聊天中（关闭则仅发送文本信息）"
+  },
+  "max_video_size_mb": {
+    "description": "最大视频大小(MB)",
+    "type": "int",
+    "default": 50,
+    "hint": "自动下载视频的最大大小限制，超过此大小仅发送链接"
+  },
+  "request_timeout": {
+    "description": "请求超时(秒)",
+    "type": "int",
+    "default": 30,
+    "hint": "请求视频平台API的超时时间"
+  },
+  "cache_enabled": {
+    "description": "启用缓存",
+    "type": "bool",
+    "default": true,
+    "hint": "缓存解析结果以减少重复请求"
+  },
+  "cache_ttl_minutes": {
+    "description": "缓存过期时间(分钟)",
+    "type": "int",
+    "default": 30,
+    "hint": "解析结果缓存的有效时间"
+  },
+  "twitter_cookies": {
+    "description": "X(Twitter) Cookie",
+    "type": "text",
+    "default": "",
+    "hint": "X平台的Cookie，用于提高解析成功率（可选）"
+  },
+  "xiaohongshu_cookies": {
+    "description": "小红书 Cookie",
+    "type": "text",
+    "default": "",
+    "hint": "小红书平台的Cookie（a1、web_session等），用于提高解析成功率。可从浏览器开发者工具 → Application → Cookies 获取"
+  },
+  "douyin_api_url": {
+    "description": "抖音解析API地址",
+    "type": "text",
+    "default": "",
+    "hint": "抖音反爬严格，建议配置第三方解析API。留空仅使用官方接口（大概率失败）。接口格式：GET请求，返回JSON包含 title/author/video_url 字段，支持 {url} 占位符。示例: https://api.example.com/?url={url}"
+  },
+  "kuaishou_api_url": {
+    "description": "快手解析API地址",
+    "type": "text",
+    "default": "",
+    "hint": "快手反爬严格，建议配置第三方解析API。留空仅使用官方接口"
+  }
+}

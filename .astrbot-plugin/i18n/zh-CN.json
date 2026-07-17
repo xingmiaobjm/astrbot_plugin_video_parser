@@ -1,0 +1,12 @@
+{
+  "pages": {
+    "settings": {
+      "title": "视频解析 - 手动测试",
+      "description": "手动输入链接测试各平台解析效果"
+    },
+    "stats": {
+      "title": "解析统计看板",
+      "description": "查看各平台解析统计数据"
+    }
+  }
+}

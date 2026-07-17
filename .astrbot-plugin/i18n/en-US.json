@@ -1,0 +1,12 @@
+{
+  "pages": {
+    "settings": {
+      "title": "Video Parser - Manual Test",
+      "description": "Manually test platform video parsing"
+    },
+    "stats": {
+      "title": "Parse Statistics Dashboard",
+      "description": "View parsing statistics by platform"
+    }
+  }
+}
