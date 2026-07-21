@@ -248,7 +248,7 @@ class VideoParserPlugin(Star):
     # ========== LLM 函数工具: 搜索视频 ==========
 
     @filter.llm_tool(name="search_video")
-    async def search_video(self, event: AstrMessageEvent, keywords: str, platform: str = "bilibili") -> MessageEventResult:
+    async def search_video(self, event: AstrMessageEvent, keywords: str, platform: str = "bilibili") -> str:
         """搜索各平台的视频并返回视频链接和标题。用户可能用自然语言描述想看的视频内容，你需要提取关键词作为 keywords 参数。
 
         Args:
@@ -263,14 +263,12 @@ class VideoParserPlugin(Star):
         info = platform_map.get(platform)
         if not info:
             supported = ", ".join(platform_map.keys())
-            yield event.plain_result(f"不支持的平台 '{platform}'，当前支持: {supported}")
-            return
+            return f"不支持的平台 '{platform}'，当前支持: {supported}"
 
         plat_key, plat_name = info
         enabled_platforms = self.config.get("enabled_platforms", {})
         if not enabled_platforms.get(plat_key, True):
-            yield event.plain_result(f"{plat_name}平台解析已被管理员禁用")
-            return
+            return f"{plat_name}平台解析已被管理员禁用"
 
         logger.info(f"[VideoParser] LLM 请求搜索: platform={plat_key}, keywords={keywords}")
 
@@ -278,12 +276,10 @@ class VideoParserPlugin(Star):
             results = await self._search_platform(plat_key, keywords)
         except Exception as e:
             logger.error(f"[VideoParser] 搜索异常: {e}")
-            yield event.plain_result(f"搜索 {plat_name} 时出错，请稍后重试。")
-            return
+            return f"搜索 {plat_name} 时出错，请稍后重试。"
 
         if not results:
-            yield event.plain_result(f"在 {plat_name} 上没有搜到与「{keywords}」相关的视频，请尝试更换关键词。")
-            return
+            return f"在 {plat_name} 上没有搜到与「{keywords}」相关的视频，请尝试更换关键词。"
 
         # 取第一个结果自动解析
         top = results[0]
@@ -309,7 +305,9 @@ class VideoParserPlugin(Star):
                 line += f"\n   {u}"
                 reply += line
 
-        yield event.plain_result(reply)
+        # 返回纯字符串，LLM 拿到结果后会自然地回复给用户，
+        # 此时 _on_decorating_result 钩子会拦截含链接的输出并自动解析视频
+        return reply
 
     async def _search_platform(self, platform: str, keywords: str) -> list[dict]:
         """搜索指定平台的视频，返回 [{title, url, author}, ...]"""
