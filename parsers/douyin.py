@@ -93,79 +93,6 @@ class DouyinParser(BaseParser):
 
     # ---- 分享页解析 ----
 
-    async def _fetch_from_api(self, client: httpx.AsyncClient, video_id: str, is_note: bool = False) -> dict:
-        """通过 iteminfo API 直接获取视频信息（分享页失败时的降级方案）"""
-        url = f"https://www.iesdouyin.com/web/api/v2/aweme/iteminfo/?item_ids={video_id}"
-        logger.info(f"[抖音] 尝试 API 降级: {url}")
-
-        try:
-            resp = await client.get(url, headers=self.MOBILE_HEADERS)
-            data = resp.json()
-            items = data.get("item_list", [])
-            if not items:
-                logger.info("[抖音] API 降级: item_list 为空")
-                return {}
-
-            item = items[0]
-            if not isinstance(item, dict):
-                return {}
-
-            title = item.get("desc", "")
-            author_info = item.get("author", {})
-            author = author_info.get("nickname", "") if isinstance(author_info, dict) else ""
-            create_time = item.get("create_time", 0)
-            create_time_str = datetime.fromtimestamp(create_time).strftime("%Y-%m-%d") if create_time else ""
-
-            images = [img.get("url_list", [""])[0]
-                      for img in (item.get("images") or []) if img and img.get("url_list")]
-
-            video_data = item.get("video")
-            has_video = isinstance(video_data, dict) and bool(video_data.get("play_addr"))
-
-            if images and not has_video:
-                is_note = True
-
-            if not title:
-                title = "抖音图文" if is_note else "抖音视频"
-
-            video_url = ""
-            cover_url = ""
-
-            if not is_note:
-                cover_list = (video_data or {}).get("cover", {}).get("url_list", [])
-                cover_url = cover_list[0] if cover_list else ""
-
-                play_addr = (video_data or {}).get("play_addr", {})
-                url_list = play_addr.get("url_list", [])
-                if url_list:
-                    video_url = url_list[0]
-                else:
-                    play_uri = play_addr.get("uri", "")
-                    if play_uri:
-                        if play_uri.startswith("https://"):
-                            video_url = play_uri
-                        else:
-                            video_url = f"https://www.douyin.com/aweme/v1/play/?video_id={play_uri}"
-
-                download_addr = (video_data or {}).get("download_addr", {})
-                dw_list = download_addr.get("url_list", [])
-                if dw_list:
-                    video_url = dw_list[0]
-            else:
-                if images:
-                    cover_url = images[0]
-
-            logger.info(f"[抖音] API 降级成功: title={title[:30]}, note={is_note}, "
-                       f"video={'有' if video_url else '无'}, images={len(images)}张")
-            return {
-                "title": title, "author": author, "create_time": create_time_str,
-                "cover_url": cover_url, "video_url": video_url, "images": images,
-                "is_gallery": len(images) > 0, "is_note": is_note,
-            }
-        except Exception as e:
-            logger.info(f"[抖音] API 降级失败: {e}")
-            return {}
-
     async def _fetch_from_share_page(self, client: httpx.AsyncClient, video_id: str, is_note: bool = False) -> dict:
         """从 iesdouyin.com 分享页提取视频/图文信息（统一用 /share/video/ 端点）"""
         url = f"https://www.iesdouyin.com/share/video/{video_id}/"
@@ -211,11 +138,6 @@ class DouyinParser(BaseParser):
                 if not isinstance(loader, dict):
                     return {}
 
-            # 检查顶层 errors
-            errors = data.get("errors")
-            if errors:
-                logger.info(f"[抖音] 分享页返回 errors: {json.dumps(errors, ensure_ascii=False)[:200]}")
-
             video_info_res = None
             stack_items = [(k, v) for k, v in loader.items()]
             while stack_items:
@@ -223,38 +145,32 @@ class DouyinParser(BaseParser):
                 if isinstance(v, dict):
                     if "videoInfoRes" in v:
                         video_info_res = v["videoInfoRes"]
-                        logger.info(f"[抖音] 找到 videoInfoRes, keys={list(video_info_res.keys())[:15] if isinstance(video_info_res, dict) else type(video_info_res).__name__}")
                         break
                     if "item_list" in v:
                         video_info_res = v
                         break
                     stack_items.extend(v.items())
 
-            # 如果 videoInfoRes 找到了但 item_list 无效，尝试宽泛搜索
-            item_list = None
-            if isinstance(video_info_res, dict):
-                item_list = video_info_res.get("item_list")
-                logger.info(f"[抖音] videoInfoRes: status_code={video_info_res.get('status_code')}, "
-                           f"item_list type={type(item_list).__name__}, "
-                           f"len={len(item_list) if isinstance(item_list, list) else 'N/A'}")
-
-            if not isinstance(item_list, list) or not item_list:
-                # 宽泛搜索：在整个 loaderData 中找包含有效 item 的列表
+            if not video_info_res:
+                # 宽泛搜索：找包含 images 且 images 为非空列表的 dict
                 stack_items = [(k, v) for k, v in loader.items()]
                 while stack_items:
                     k, v = stack_items.pop()
                     if isinstance(v, list) and v and isinstance(v[0], dict):
-                        # 优先找有 desc/video/images 字段的 item 列表
-                        if any(isinstance(d, dict) and (d.get("desc") or d.get("video") or d.get("images")) for d in v):
+                        if any(isinstance(d.get("images"), list) and d.get("images") for d in v if isinstance(d, dict)):
                             video_info_res = {"item_list": v}
-                            item_list = v
-                            logger.info(f"[抖音] 宽泛搜索找到 item_list (key={k}, len={len(v)})")
+                            logger.info(f"[抖音] 宽泛搜索找到 item_list (key={k})")
                             break
                     if isinstance(v, dict):
                         stack_items.extend(v.items())
 
+            if not video_info_res:
+                logger.info("[抖音] loaderData 中未找到 videoInfoRes/item_list")
+                return {}
+
+            item_list = video_info_res.get("item_list")
             if not isinstance(item_list, list) or not item_list:
-                logger.info("[抖音] loaderData 中未找到有效的 videoInfoRes/item_list")
+                logger.info("[抖音] videoInfoRes.item_list 为空或非 list")
                 return {}
 
             item = item_list[0]
@@ -298,28 +214,23 @@ class DouyinParser(BaseParser):
                 cover_list = video_data.get("cover", {}).get("url_list", [])
                 cover_url = cover_list[0] if cover_list else ""
 
-                # 优先使用带 token 的 CDN 直链，避免 aweme/v1/play API 的 404
                 play_addr = video_data.get("play_addr", {})
-                url_list = play_addr.get("url_list", [])
-                if url_list:
-                    video_url = url_list[0]  # CDN 直链，带 token，可直接下载
+                play_uri = play_addr.get("uri", "")
+                if play_uri:
+                    if play_uri.endswith(".mp3"):
+                        video_url = play_uri
+                    elif play_uri.startswith("https://"):
+                        video_url = play_uri
+                    else:
+                        video_url = f"https://www.douyin.com/aweme/v1/play/?video_id={play_uri}"
                 else:
-                    play_uri = play_addr.get("uri", "")
-                    if play_uri:
-                        if play_uri.endswith(".mp3"):
-                            video_url = play_uri
-                        elif play_uri.startswith("https://"):
-                            video_url = play_uri
-                        else:
-                            video_url = f"https://www.douyin.com/aweme/v1/play/?video_id={play_uri}"
+                    url_list = play_addr.get("url_list", [])
+                    video_url = url_list[0] if url_list else ""
 
-                # download_addr 的 CDN 直链品质最高，覆盖前面的结果
                 download_addr = video_data.get("download_addr", {})
                 dw_list = download_addr.get("url_list", [])
                 if dw_list:
                     video_url = dw_list[0]
-
-                logger.info(f"[抖音] video_url 前80字符: {video_url[:80] if video_url else '(空)'}")
             else:
                 # 图文模式：封面取第一张图
                 if images:
@@ -385,18 +296,6 @@ class DouyinParser(BaseParser):
             is_note = "/note/" in clean_url
 
             async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
-                # 先访问首页获取 ttwid 等 Cookie，否则 API 返回空数据
-                try:
-                    home_resp = await client.get("https://www.douyin.com/", headers={
-                        "User-Agent": self.MOBILE_HEADERS["User-Agent"],
-                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                    })
-                    ttwid = client.cookies.get("ttwid", "")
-                    logger.info(f"[抖音] 首页 Cookie: ttwid={'已获取' if ttwid else '未获取'}, "
-                               f"status={home_resp.status_code}")
-                except Exception as e:
-                    logger.info(f"[抖音] 首页访问失败: {e}")
-
                 # 短链 → 解析出 video_id 和 is_note
                 if not video_id and "v.douyin.com" in clean_url:
                     video_id, is_note = await self._resolve_short_url(client, clean_url)
@@ -409,10 +308,6 @@ class DouyinParser(BaseParser):
 
                 # 从分享页解析
                 info = await self._fetch_from_share_page(client, video_id, is_note=is_note)
-
-                # 分享页失败 → API 降级
-                if not info.get("title") and not info.get("video_url"):
-                    info = await self._fetch_from_api(client, video_id, is_note=is_note)
 
                 # 图文：有标题且有图就算成功
                 if is_note:
