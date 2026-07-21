@@ -334,7 +334,16 @@ class VideoParserPlugin(Star):
         }
         results = []
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+                # 先访问首页获取 Cookie，绕过风控
+                try:
+                    await client.get("https://www.bilibili.com/", headers={
+                        "User-Agent": headers["User-Agent"],
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    })
+                except Exception:
+                    pass
+
                 resp = await client.get(url, params={
                     "search_type": "video",
                     "keyword": keywords,
