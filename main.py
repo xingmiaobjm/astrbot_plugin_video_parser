@@ -328,6 +328,9 @@ class VideoParserPlugin(Star):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                           "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
             "Referer": "https://www.bilibili.com/",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+            "Origin": "https://www.bilibili.com",
         }
         results = []
         try:
@@ -338,6 +341,10 @@ class VideoParserPlugin(Star):
                     "page": 1,
                     "page_size": 8,
                 }, headers=headers)
+                logger.info(f"[VideoParser] B站搜索 HTTP {resp.status_code}, body前100字符: {resp.text[:100]}")
+                if resp.status_code != 200:
+                    logger.error(f"[VideoParser] B站搜索返回非200: {resp.status_code}")
+                    return results
                 data = resp.json()
                 if data.get("code") == 0:
                     for item in data.get("data", {}).get("result", []):
@@ -347,6 +354,8 @@ class VideoParserPlugin(Star):
                         video_url = f"https://www.bilibili.com/video/{bvid}" if bvid else ""
                         if video_url:
                             results.append({"title": title, "url": video_url, "author": author})
+                else:
+                    logger.info(f"[VideoParser] B站搜索 code={data.get('code')}, msg={data.get('message')}")
         except Exception as e:
             logger.error(f"[VideoParser] B站搜索失败: {e}")
         return results
