@@ -82,7 +82,7 @@ class VideoParserPlugin(Star):
         """获取公开配置项（返回纯 dict）"""
         public_config = {}
         for key in (
-            "max_video_size_mb", "request_timeout",
+            "intercept_enabled", "max_video_size_mb", "request_timeout",
             "twitter_cookies", "xiaohongshu_cookies",
             "douyin_api_url",
         ):
@@ -102,7 +102,7 @@ class VideoParserPlugin(Star):
             return error_response("配置格式不正确", status_code=400)
 
         for key in (
-            "max_video_size_mb", "request_timeout",
+            "intercept_enabled", "max_video_size_mb", "request_timeout",
             "twitter_cookies", "xiaohongshu_cookies",
             "douyin_api_url",
         ):
@@ -427,6 +427,9 @@ class VideoParserPlugin(Star):
         """拦截包含视频链接的输出消息，自动下载视频发送。
         当 LLM 生成的回复或 search_video 工具的结果中包含链接时，
         此钩子会在消息发送前将其截获，解析链接并直接发送视频。"""
+        if not self.config.get("intercept_enabled", True):
+            return
+
         result = event.get_result()
         if result is None:
             return

@@ -21,6 +21,20 @@
     <!-- Tab 1: 平台配置 -->
     <section class="tab-panel active" role="tabpanel" data-panel="platforms">
       <div class="panel-block">
+        <h2>拦截解析</h2>
+        <p class="section-desc">当机器人输出内容包含视频链接时，自动拦截文本并发送解析后的视频</p>
+        <div class="form-grid">
+          <label class="form-item switch-item">
+            <span>
+              <strong>启用拦截解析</strong>
+              <small>LLM 输出含链接时自动替换为视频</small>
+            </span>
+            <input type="checkbox" id="intercept_enabled" />
+          </label>
+        </div>
+      </div>
+
+      <div class="panel-block">
         <h2>启用平台</h2>
         <p class="section-desc">选择需要自动解析的视频平台</p>
         <div class="form-grid">

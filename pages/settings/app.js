@@ -6,6 +6,8 @@ const $ = (id) => document.getElementById(id);
 
 /* ---- Config field mapping ---- */
 const CONFIG_FIELDS = {
+  // Intercept
+  intercept_enabled:    { id: "intercept_enabled",     type: "bool",   default: true },
   // Params
   max_video_size_mb:    { id: "max_video_size_mb",     type: "int",    default: 50 },
   request_timeout:      { id: "request_timeout",       type: "int",    default: 30 },

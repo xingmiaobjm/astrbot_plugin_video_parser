@@ -1,4 +1,10 @@
 {
+  "intercept_enabled": {
+    "description": "启用拦截解析",
+    "type": "bool",
+    "default": true,
+    "hint": "当机器人输出内容包含视频链接时，自动拦截文本消息并发送解析后的视频"
+  },
   "enabled_platforms": {
     "description": "启用的解析平台",
     "type": "object",
