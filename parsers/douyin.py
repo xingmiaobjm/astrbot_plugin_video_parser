@@ -385,6 +385,18 @@ class DouyinParser(BaseParser):
             is_note = "/note/" in clean_url
 
             async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
+                # 先访问首页获取 ttwid 等 Cookie，否则 API 返回空数据
+                try:
+                    home_resp = await client.get("https://www.douyin.com/", headers={
+                        "User-Agent": self.MOBILE_HEADERS["User-Agent"],
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    })
+                    ttwid = client.cookies.get("ttwid", "")
+                    logger.info(f"[抖音] 首页 Cookie: ttwid={'已获取' if ttwid else '未获取'}, "
+                               f"status={home_resp.status_code}")
+                except Exception as e:
+                    logger.info(f"[抖音] 首页访问失败: {e}")
+
                 # 短链 → 解析出 video_id 和 is_note
                 if not video_id and "v.douyin.com" in clean_url:
                     video_id, is_note = await self._resolve_short_url(client, clean_url)
