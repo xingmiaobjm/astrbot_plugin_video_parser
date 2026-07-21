@@ -138,6 +138,11 @@ class DouyinParser(BaseParser):
                 if not isinstance(loader, dict):
                     return {}
 
+            # 检查顶层 errors
+            errors = data.get("errors")
+            if errors:
+                logger.info(f"[抖音] 分享页返回 errors: {json.dumps(errors, ensure_ascii=False)[:200]}")
+
             video_info_res = None
             stack_items = [(k, v) for k, v in loader.items()]
             while stack_items:
@@ -145,32 +150,35 @@ class DouyinParser(BaseParser):
                 if isinstance(v, dict):
                     if "videoInfoRes" in v:
                         video_info_res = v["videoInfoRes"]
+                        logger.info(f"[抖音] 找到 videoInfoRes, keys={list(video_info_res.keys())[:15] if isinstance(video_info_res, dict) else type(video_info_res).__name__}")
                         break
                     if "item_list" in v:
                         video_info_res = v
                         break
                     stack_items.extend(v.items())
 
-            if not video_info_res:
-                # 宽泛搜索：找包含 images 且 images 为非空列表的 dict
+            # 如果 videoInfoRes 找到了但 item_list 无效，尝试宽泛搜索
+            item_list = None
+            if isinstance(video_info_res, dict):
+                item_list = video_info_res.get("item_list")
+
+            if not isinstance(item_list, list) or not item_list:
+                # 宽泛搜索：在整个 loaderData 中找包含有效 item 的列表
                 stack_items = [(k, v) for k, v in loader.items()]
                 while stack_items:
                     k, v = stack_items.pop()
                     if isinstance(v, list) and v and isinstance(v[0], dict):
-                        if any(isinstance(d.get("images"), list) and d.get("images") for d in v if isinstance(d, dict)):
+                        # 优先找有 desc/video/images 字段的 item 列表
+                        if any(isinstance(d, dict) and (d.get("desc") or d.get("video") or d.get("images")) for d in v):
                             video_info_res = {"item_list": v}
-                            logger.info(f"[抖音] 宽泛搜索找到 item_list (key={k})")
+                            item_list = v
+                            logger.info(f"[抖音] 宽泛搜索找到 item_list (key={k}, len={len(v)})")
                             break
                     if isinstance(v, dict):
                         stack_items.extend(v.items())
 
-            if not video_info_res:
-                logger.info("[抖音] loaderData 中未找到 videoInfoRes/item_list")
-                return {}
-
-            item_list = video_info_res.get("item_list")
             if not isinstance(item_list, list) or not item_list:
-                logger.info("[抖音] videoInfoRes.item_list 为空或非 list")
+                logger.info("[抖音] loaderData 中未找到有效的 videoInfoRes/item_list")
                 return {}
 
             item = item_list[0]
