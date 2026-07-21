@@ -245,6 +245,227 @@ class VideoParserPlugin(Star):
                 lines.append(f"  {name}: {count}")
         yield event.plain_result("\n".join(lines))
 
+    # ========== LLM 函数工具: 搜索视频 ==========
+
+    @filter.llm_tool(name="search_video")
+    async def search_video(self, event: AstrMessageEvent, keywords: str, platform: str = "bilibili") -> MessageEventResult:
+        """搜索各平台的视频并返回视频链接和标题。用户可能用自然语言描述想看的视频内容，你需要提取关键词作为 keywords 参数。
+
+        Args:
+            keywords(string): 搜索关键词，例如"猫咪搞笑"、"Python教程"、"美食制作"。必填
+            platform(string): 平台名称，可选值: bilibili(B站/哔哩哔哩), douyin(抖音), xiaohongshu(小红书)。默认 bilibili
+        """
+        platform_map = {
+            "bilibili": ("bilibili", "B站"),
+            "douyin": ("douyin", "抖音"),
+            "xiaohongshu": ("xiaohongshu", "小红书"),
+        }
+        info = platform_map.get(platform)
+        if not info:
+            supported = ", ".join(platform_map.keys())
+            yield event.plain_result(f"不支持的平台 '{platform}'，当前支持: {supported}")
+            return
+
+        plat_key, plat_name = info
+        enabled_platforms = self.config.get("enabled_platforms", {})
+        if not enabled_platforms.get(plat_key, True):
+            yield event.plain_result(f"{plat_name}平台解析已被管理员禁用")
+            return
+
+        logger.info(f"[VideoParser] LLM 请求搜索: platform={plat_key}, keywords={keywords}")
+
+        try:
+            results = await self._search_platform(plat_key, keywords)
+        except Exception as e:
+            logger.error(f"[VideoParser] 搜索异常: {e}")
+            yield event.plain_result(f"搜索 {plat_name} 时出错，请稍后重试。")
+            return
+
+        if not results:
+            yield event.plain_result(f"在 {plat_name} 上没有搜到与「{keywords}」相关的视频，请尝试更换关键词。")
+            return
+
+        # 取第一个结果自动解析
+        top = results[0]
+        url = top.get("url", "")
+        title = top.get("title", "")
+        author = top.get("author", "")
+
+        reply = f"[{plat_name}] {title}"
+        if author:
+            reply += f"\n作者: {author}"
+        reply += f"\n链接: {url}"
+
+        # 列出更多结果供参考
+        if len(results) > 1:
+            reply += "\n\n其他搜索结果:"
+            for i, r in enumerate(results[1:6], 1):
+                t = r.get("title", "无标题")[:40]
+                a = r.get("author", "")
+                u = r.get("url", "")
+                line = f"\n{i + 1}. {t}"
+                if a:
+                    line += f" (作者: {a})"
+                line += f"\n   {u}"
+                reply += line
+
+        yield event.plain_result(reply)
+
+    async def _search_platform(self, platform: str, keywords: str) -> list[dict]:
+        """搜索指定平台的视频，返回 [{title, url, author}, ...]"""
+        if platform == "bilibili":
+            return await self._search_bilibili(keywords)
+        elif platform == "douyin":
+            return await self._search_douyin(keywords)
+        elif platform == "xiaohongshu":
+            return await self._search_xiaohongshu(keywords)
+        return []
+
+    async def _search_bilibili(self, keywords: str) -> list[dict]:
+        """B站搜索"""
+        url = "https://api.bilibili.com/x/web-interface/search/type"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                          "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+            "Referer": "https://www.bilibili.com/",
+        }
+        results = []
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(url, params={
+                    "search_type": "video",
+                    "keyword": keywords,
+                    "page": 1,
+                    "page_size": 8,
+                }, headers=headers)
+                data = resp.json()
+                if data.get("code") == 0:
+                    for item in data.get("data", {}).get("result", []):
+                        bvid = item.get("bvid", "")
+                        title = re.sub(r'<[^>]+>', '', item.get("title", ""))
+                        author = item.get("author", "")
+                        video_url = f"https://www.bilibili.com/video/{bvid}" if bvid else ""
+                        if video_url:
+                            results.append({"title": title, "url": video_url, "author": author})
+        except Exception as e:
+            logger.error(f"[VideoParser] B站搜索失败: {e}")
+        return results
+
+    async def _search_douyin(self, keywords: str) -> list[dict]:
+        """抖音搜索（通过配置的 API）"""
+        api_template = self.config.get("douyin_api_url", "")
+        if not api_template:
+            logger.info("[VideoParser] 抖音搜索: 未配置 douyin_api_url，无法搜索")
+            return []
+
+        results = []
+        try:
+            search_url = api_template.replace("{url}", f"search?keyword={keywords}")
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(search_url, headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    "Accept": "application/json",
+                })
+                data = resp.json()
+                items = data.get("data", data).get("list", data.get("data", []))
+                if isinstance(items, list):
+                    for item in items[:8]:
+                        aweme_info = item.get("aweme_info", item)
+                        title = aweme_info.get("desc", "")[:60]
+                        author = aweme_info.get("author", {}).get("nickname", "")
+                        aweme_id = aweme_info.get("aweme_id", "")
+                        video_url = f"https://www.douyin.com/video/{aweme_id}" if aweme_id else ""
+                        if title and video_url:
+                            results.append({"title": title, "url": video_url, "author": author})
+        except Exception as e:
+            logger.error(f"[VideoParser] 抖音搜索失败: {e}")
+        return results
+
+    async def _search_xiaohongshu(self, keywords: str) -> list[dict]:
+        """小红书搜索"""
+        cookies = self.config.get("xiaohongshu_cookies", "")
+        if not cookies:
+            logger.info("[VideoParser] 小红书搜索: 未配置 cookies，无法搜索")
+            return []
+
+        results = []
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                          "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+            "Cookie": cookies,
+            "Referer": "https://www.xiaohongshu.com/",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get("https://edith.xiaohongshu.com/api/sns/web/v1/search/notes", params={
+                    "keyword": keywords,
+                    "page": 1,
+                    "page_size": 8,
+                    "search_id": hashlib.md5(keywords.encode()).hexdigest()[:16],
+                    "sort": "general",
+                    "note_type": 0,
+                }, headers=headers)
+                data = resp.json()
+                items = data.get("data", {}).get("items", [])
+                if isinstance(items, list):
+                    for item in items[:8]:
+                        note_card = item.get("note_card", item)
+                        display_title = note_card.get("display_title", "")
+                        user = note_card.get("user", {}).get("nickname", "")
+                        note_id = note_card.get("note_id", item.get("id", ""))
+                        url = f"https://www.xiaohongshu.com/explore/{note_id}" if note_id else ""
+                        if display_title and url:
+                            results.append({"title": display_title[:60], "url": url, "author": user})
+        except Exception as e:
+            logger.error(f"[VideoParser] 小红书搜索失败: {e}")
+        return results
+
+    # ========== 消息拦截: 自动解析 LLM 输出中的链接 ==========
+
+    @filter.on_decorating_result()
+    async def _on_decorating_result(self, event: AstrMessageEvent):
+        """拦截包含视频链接的输出消息，自动下载视频发送。
+        当 LLM 生成的回复或 search_video 工具的结果中包含链接时，
+        此钩子会在消息发送前将其截获，解析链接并直接发送视频。"""
+        result = event.get_result()
+        if result is None:
+            return
+
+        chain = getattr(result, 'chain', None)
+        if not chain:
+            return
+
+        # 从消息链中提取纯文本
+        text_parts = []
+        for comp in chain:
+            t = getattr(comp, 'text', None)
+            if t:
+                text_parts.append(t)
+
+        full_text = "".join(text_parts)
+        urls = extract_urls(full_text)
+        if not urls:
+            return
+
+        logger.info(f"[VideoParser] 拦截到含链接的输出消息，共 {len(urls)} 个")
+
+        # 阻止原始消息发送
+        event.stop_event()
+
+        enabled_platforms = self.config.get("enabled_platforms", {})
+        for url in urls[:2]:
+            platform = detect_platform(url)
+            if not platform or platform not in self.parsers:
+                continue
+            if not enabled_platforms.get(platform, True):
+                continue
+
+            try:
+                msg_chain = await self._parse_and_build_chain(event, url, platform)
+                await event.send(_MessageChain(msg_chain))
+            except Exception as e:
+                logger.error(f"[VideoParser] 拦截解析失败: {e}")
+
     # ========== 自动解析 ==========
 
     @filter.regex(r'https?://')
