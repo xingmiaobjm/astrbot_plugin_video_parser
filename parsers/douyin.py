@@ -214,23 +214,28 @@ class DouyinParser(BaseParser):
                 cover_list = video_data.get("cover", {}).get("url_list", [])
                 cover_url = cover_list[0] if cover_list else ""
 
+                # 优先使用带 token 的 CDN 直链，避免 aweme/v1/play API 的 404
                 play_addr = video_data.get("play_addr", {})
-                play_uri = play_addr.get("uri", "")
-                if play_uri:
-                    if play_uri.endswith(".mp3"):
-                        video_url = play_uri
-                    elif play_uri.startswith("https://"):
-                        video_url = play_uri
-                    else:
-                        video_url = f"https://www.douyin.com/aweme/v1/play/?video_id={play_uri}"
+                url_list = play_addr.get("url_list", [])
+                if url_list:
+                    video_url = url_list[0]  # CDN 直链，带 token，可直接下载
                 else:
-                    url_list = play_addr.get("url_list", [])
-                    video_url = url_list[0] if url_list else ""
+                    play_uri = play_addr.get("uri", "")
+                    if play_uri:
+                        if play_uri.endswith(".mp3"):
+                            video_url = play_uri
+                        elif play_uri.startswith("https://"):
+                            video_url = play_uri
+                        else:
+                            video_url = f"https://www.douyin.com/aweme/v1/play/?video_id={play_uri}"
 
+                # download_addr 的 CDN 直链品质最高，覆盖前面的结果
                 download_addr = video_data.get("download_addr", {})
                 dw_list = download_addr.get("url_list", [])
                 if dw_list:
                     video_url = dw_list[0]
+
+                logger.info(f"[抖音] video_url 前80字符: {video_url[:80] if video_url else '(空)'}")
             else:
                 # 图文模式：封面取第一张图
                 if images:
